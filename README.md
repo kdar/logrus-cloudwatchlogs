@@ -1,4 +1,4 @@
-# Cloud Watch Logs hook for Logrus [![godoc reference](https://godoc.org/github.com/kdar/logrus-cloudwatchlogs?status.png)][godoc]
+# Cloud Watch Logs hook for Logrus ![godoc reference](https://godoc.org/github.com/kdar/logrus-cloudwatchlogs?status.png)
 
 
 Use this hook to send your logs to Amazon's [Cloud Watch Logs](https://aws.amazon.com/cloudwatch/details/#log-monitoring).
