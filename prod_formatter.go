@@ -87,31 +87,31 @@ func NewProdFormatter(options ...ProdFormatterOption) *ProdFormatter {
 // Format formats logrus.Entry in the form of:
 // [timestamp] [jsondata]
 func (f *ProdFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	tmp := make([]byte, 50)
+	//tmp := make([]byte, 50)
 	b := &bytes.Buffer{}
 
-	//b.WriteString(time.Now().Format("2006-01-02T15:04:05.999Z"))
+	// //b.WriteString(time.Now().Format("2006-01-02T15:04:05.999Z"))
 	now := time.Now()
-	year, month, day := now.Date()
-	hour, minute, second := now.Clock()
-	nano := now.Nanosecond()
-	fourDigits(&tmp, 0, year)
-	tmp[4] = '-'
-	twoDigits(&tmp, 5, int(month))
-	tmp[7] = '-'
-	twoDigits(&tmp, 8, day)
-	tmp[10] = 'T'
-	twoDigits(&tmp, 11, hour)
-	tmp[13] = ':'
-	twoDigits(&tmp, 14, minute)
-	tmp[16] = ':'
-	twoDigits(&tmp, 17, second)
-	tmp[19] = '.'
-	threeDigits(&tmp, 20, nano)
-	tmp[23] = 'Z'
-	b.Write(tmp[:24])
-
-	b.WriteRune(' ')
+	// year, month, day := now.Date()
+	// hour, minute, second := now.Clock()
+	// nano := now.Nanosecond()
+	// fourDigits(&tmp, 0, year)
+	// tmp[4] = '-'
+	// twoDigits(&tmp, 5, int(month))
+	// tmp[7] = '-'
+	// twoDigits(&tmp, 8, day)
+	// tmp[10] = 'T'
+	// twoDigits(&tmp, 11, hour)
+	// tmp[13] = ':'
+	// twoDigits(&tmp, 14, minute)
+	// tmp[16] = ':'
+	// twoDigits(&tmp, 17, second)
+	// tmp[19] = '.'
+	// threeDigits(&tmp, 20, nano)
+	// tmp[23] = 'Z'
+	// b.Write(tmp[:24])
+	//
+	// b.WriteRune(' ')
 
 	// // This is so incredibly hacky. Needed until logrus implements
 	// // this.
@@ -122,7 +122,7 @@ func (f *ProdFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	// file, line, function := fileInfo(skip)
 
 	data := map[string]interface{}{
-		"time":  b.String()[:24],
+		"time":  now.Unix(), //b.String()[:24],
 		"msg":   entry.Message,
 		"level": entry.Level.String(),
 		"host":  f.hostname,

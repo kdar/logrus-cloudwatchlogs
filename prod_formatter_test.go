@@ -31,11 +31,11 @@ func TestProdFormatter(t *testing.T) {
 		"key":   "testkey",
 	}).Info("Some event")
 
-	split := bytes.SplitN(buf.Bytes(), []byte(" "), 2)
-	a.So(len(split), should.Equal, 2).ElseFatal()
+	// split := bytes.SplitN(buf.Bytes(), []byte(" "), 2)
+	// a.So(len(split), should.Equal, 2).ElseFatal()
 
 	var v map[string]interface{}
-	err := json.Unmarshal(split[1], &v)
+	err := json.Unmarshal(buf.Bytes(), &v)
 	a.So(err, should.BeNil).ElseFatal()
 
 	a.So(v["event"], should.Equal, "testevent").ElseFatal()
@@ -91,14 +91,16 @@ func TestProdFormatterCaller(t *testing.T) {
 		modl := mod(l)
 
 		modl.Info("Some event")
-		split := bytes.SplitN(buf.Bytes(), []byte(" "), 2)
-		a.So(len(split), should.Equal, 2).Else(func(msg string) {
-			t.Fatalf("\nfailed at index %d\n%s", i, msg)
-		})
+		// split := bytes.SplitN(buf.Bytes(), []byte(" "), 2)
+		// a.So(len(split), should.Equal, 2).Else(func(msg string) {
+		// 	t.Fatalf("\nfailed at index %d\n%s", i, msg)
+		// })
 
 		var v map[string]interface{}
-		err := json.Unmarshal(split[1], &v)
-		a.So(err, should.BeNil).ElseFatal()
+		err := json.Unmarshal(buf.Bytes(), &v)
+		a.So(err, should.BeNil).Else(func(msg string) {
+			t.Fatalf("\nfailed at index %d\n%s", i, msg)
+		})
 
 		// extra := v[prodFormatter.extraKey].(map[string]interface{})
 		// a.So(extra["file"], should.Equal, "formatter_test.go").Else(func(msg string) {
@@ -125,5 +127,15 @@ func TestProdFormatterHTTPRequest(t *testing.T) {
 
 	l.WithField("request", req).Print("with http request")
 
-	a.So(buf.String(), should.Equal, "").ElseFatal()
+	var v struct {
+		Request struct {
+			Host   string
+			Method string
+		}
+	}
+	err = json.Unmarshal(buf.Bytes(), &v)
+	a.So(err, should.BeNil).ElseFatal()
+
+	a.So(v.Request.Host, should.Equal, "rxmanagement.net").ElseFatal()
+	a.So(v.Request.Method, should.Equal, "GET").ElseFatal()
 }
