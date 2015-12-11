@@ -1,6 +1,10 @@
 package logrus_cloudwatchlogs
 
-import "github.com/Sirupsen/logrus"
+import (
+	"net/http"
+
+	"github.com/Sirupsen/logrus"
+)
 
 type DevFormatter struct {
 	HTTPRequestKey string
@@ -9,7 +13,10 @@ type DevFormatter struct {
 
 func (f *DevFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if _, ok := entry.Data[f.HTTPRequestKey]; ok {
-		delete(entry.Data, f.HTTPRequestKey)
+		req, ok := entry.Data[f.HTTPRequestKey].(*http.Request)
+		if ok {
+			entry.Data[f.HTTPRequestKey] = req.Method + " " + req.RequestURI
+		}
 	}
 
 	if f.TextFormatter == nil {
