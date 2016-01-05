@@ -23,6 +23,11 @@ type ProdFormatter struct {
 
 type ProdFormatterOption func(*ProdFormatter) error
 
+//Marshaler is an interface any type can implement to change its output in our production logs.
+type Marshaler interface {
+	MarshalLog() map[string]interface{}
+}
+
 // Hostname is a formatter option that specifies the hostname this
 // program is running on. If this is not specified, the system's hostname
 // will be used.
@@ -138,6 +143,8 @@ func (f *ProdFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 			// Otherwise errors are ignored by `encoding/json`
 			// https://github.com/Sirupsen/logrus/issues/137
 			data[k] = v.Error()
+		case marshaler:
+			data[k] = v.MarshalLog()
 		default:
 			data[k] = v
 		}
