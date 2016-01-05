@@ -13,8 +13,18 @@ import (
 	"github.com/smartystreets/assertions/should"
 )
 
+//Example is a struct that implements Marshaler. It marshals as a map where "Content" is set to the value of A, and B is discarded
+type Example struct {
+	A, B string
+}
+
+func (e Example) MarshalLog() map[string]interface{} {
+	out := make(map[string]interface{})
+	out["Content"] = e.A
+	return out
+}
+
 func TestProdFormatter(t *testing.T) {
-	t.SkipNow()
 	a := gtest.New(t)
 
 	l := logrus.New()
@@ -26,9 +36,10 @@ func TestProdFormatter(t *testing.T) {
 	l.Hooks.Add(NewWriterHook(buf))
 
 	l.WithFields(logrus.Fields{
-		"event": "testevent",
-		"topic": "testtopic",
-		"key":   "testkey",
+		"event":       "testevent",
+		"topic":       "testtopic",
+		"key":         "testkey",
+		"marshaltest": Example{A: "hello", B: "this gets dropped"},
 	}).Info("Some event")
 
 	// split := bytes.SplitN(buf.Bytes(), []byte(" "), 2)
@@ -41,7 +52,8 @@ func TestProdFormatter(t *testing.T) {
 	a.So(v["event"], should.Equal, "testevent").ElseFatal()
 	a.So(v["topic"], should.Equal, "testtopic").ElseFatal()
 	a.So(v["key"], should.Equal, "testkey").ElseFatal()
-	a.So(v["message"], should.Equal, "Some event").ElseFatal()
+	a.So(v["msg"], should.Equal, "Some event").ElseFatal()
+	a.So(v["marshaltest"].(map[string]interface{})["Content"], should.Equal, "hello").ElseFatal()
 }
 
 func TestProdFormatterCaller(t *testing.T) {
