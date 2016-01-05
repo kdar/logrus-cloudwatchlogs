@@ -143,7 +143,7 @@ func (f *ProdFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 			// Otherwise errors are ignored by `encoding/json`
 			// https://github.com/Sirupsen/logrus/issues/137
 			data[k] = v.Error()
-		case marshaler:
+		case Marshaler:
 			data[k] = v.MarshalLog()
 		default:
 			data[k] = v
