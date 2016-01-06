@@ -19,6 +19,19 @@ func TestHook(t *testing.T) {
 	group := os.Getenv("AWS_CLOUDWATCHLOGS_GROUP_NAME")
 	stream := os.Getenv("AWS_CLOUDWATCHLOGS_STREAM_NAME")
 
+	if key == "" {
+		t.Skip("skipping test; AWS_ACCESS_KEY not set")
+	}
+	if secret == "" {
+		t.Skip("skipping test; AWS_SECRET_KEY not set")
+	}
+	if group == "" {
+		t.Skip("skipping test; AWS_CLOUDWATCHLOGS_GROUP_NAME not set")
+	}
+	if stream == "" {
+		t.Skip("skipping test; AWS_CLOUDWATCHLOGS_STREAM_NAME not set")
+	}
+
 	// logs.us-east-1.amazonaws.com
 	cred := credentials.NewStaticCredentials(key, secret, "")
 	cfg := aws.NewConfig().WithRegion("us-east-1").WithCredentials(cred)
