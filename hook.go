@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -17,6 +18,7 @@ type Hook struct {
 	groupName         string
 	streamName        string
 	nextSequenceToken *string
+	m                 sync.Mutex
 }
 
 func NewHook(groupName, streamName string, cfg *aws.Config) (*Hook, error) {
@@ -80,6 +82,9 @@ func (h *Hook) Fire(entry *logrus.Entry) error {
 }
 
 func (h *Hook) Write(p []byte) (n int, err error) {
+	h.m.Lock()
+	defer h.m.Unlock()
+
 	params := &cloudwatchlogs.PutLogEventsInput{
 		LogEvents: []*cloudwatchlogs.InputLogEvent{
 			{
