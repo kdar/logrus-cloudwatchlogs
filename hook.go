@@ -19,7 +19,7 @@ type Hook struct {
 	streamName        string
 	nextSequenceToken *string
 	m                 sync.Mutex
-	ch                chan []byte
+	ch                chan *cloudwatchlogs.InputLogEvent
 	err               chan error
 }
 
@@ -35,7 +35,7 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 	}
 
 	if batchFrequency > 0 {
-		h.ch = make(chan []byte, 10000)
+		h.ch = make(chan *cloudwatchlogs.InputLogEvent, 10000)
 		go h.putBatches(time.Tick(batchFrequency))
 	}
 
@@ -97,10 +97,7 @@ func (h *Hook) putBatches(ticker <-chan time.Time) {
 	for {
 		select {
 		case p := <-h.ch:
-			batch = append(batch, &cloudwatchlogs.InputLogEvent{
-				Message:   aws.String(string(p)),
-				Timestamp: aws.Int64(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)),
-			})
+			batch = append(batch, p)
 		case <-ticker:
 			params := &cloudwatchlogs.PutLogEventsInput{
 				LogEvents:     batch,
@@ -120,8 +117,13 @@ func (h *Hook) putBatches(ticker <-chan time.Time) {
 }
 
 func (h *Hook) Write(p []byte) (n int, err error) {
+	event := &cloudwatchlogs.InputLogEvent{
+		Message:   aws.String(string(p)),
+		Timestamp: aws.Int64(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)),
+	}
+
 	if h.ch != nil {
-		h.ch <- p
+		h.ch <- event
 		if lastErr, ok := <-h.err; ok {
 			return 0, fmt.Errorf("%v", lastErr)
 		}
@@ -131,12 +133,7 @@ func (h *Hook) Write(p []byte) (n int, err error) {
 	defer h.m.Unlock()
 
 	params := &cloudwatchlogs.PutLogEventsInput{
-		LogEvents: []*cloudwatchlogs.InputLogEvent{
-			{
-				Message:   aws.String(string(p)),
-				Timestamp: aws.Int64(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)),
-			},
-		},
+		LogEvents:     []*cloudwatchlogs.InputLogEvent{event},
 		LogGroupName:  aws.String(h.groupName),
 		LogStreamName: aws.String(h.streamName),
 		SequenceToken: h.nextSequenceToken,
