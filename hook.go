@@ -34,11 +34,6 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 		streamName: streamName,
 	}
 
-	if batchFrequency > 0 {
-		h.ch = make(chan *cloudwatchlogs.InputLogEvent, 10000)
-		go h.putBatches(time.Tick(batchFrequency))
-	}
-
 	resp, err := h.svc.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
 		LogGroupName:        aws.String(h.groupName), // Required
 		LogStreamNamePrefix: aws.String(h.streamName),
@@ -61,6 +56,11 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if batchFrequency > 0 {
+		h.ch = make(chan *cloudwatchlogs.InputLogEvent, 10000)
+		go h.putBatches(time.Tick(batchFrequency))
 	}
 
 	return h, nil
