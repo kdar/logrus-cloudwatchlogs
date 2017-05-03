@@ -19,9 +19,15 @@ type Hook struct {
 	streamName        string
 	nextSequenceToken *string
 	m                 sync.Mutex
+	ch                chan *cloudwatchlogs.InputLogEvent
+	err               chan error
 }
 
 func NewHook(groupName, streamName string, cfg *aws.Config) (*Hook, error) {
+	return NewBatchingHook(groupName, streamName, cfg, 0)
+}
+
+func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequency time.Duration) (*Hook, error) {
 	h := &Hook{
 		svc:        cloudwatchlogs.New(session.New(cfg)),
 		groupName:  groupName,
@@ -50,6 +56,11 @@ func NewHook(groupName, streamName string, cfg *aws.Config) (*Hook, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if batchFrequency > 0 {
+		h.ch = make(chan *cloudwatchlogs.InputLogEvent, 10000)
+		go h.putBatches(time.Tick(batchFrequency))
 	}
 
 	return h, nil
@@ -81,17 +92,48 @@ func (h *Hook) Fire(entry *logrus.Entry) error {
 	}
 }
 
+func (h *Hook) putBatches(ticker <-chan time.Time) {
+	var batch []*cloudwatchlogs.InputLogEvent
+	for {
+		select {
+		case p := <-h.ch:
+			batch = append(batch, p)
+		case <-ticker:
+			params := &cloudwatchlogs.PutLogEventsInput{
+				LogEvents:     batch,
+				LogGroupName:  aws.String(h.groupName),
+				LogStreamName: aws.String(h.streamName),
+				SequenceToken: h.nextSequenceToken,
+			}
+			resp, err := h.svc.PutLogEvents(params)
+			if err != nil {
+				h.err <- err
+			} else {
+				h.nextSequenceToken = resp.NextSequenceToken
+				batch = nil
+			}
+		}
+	}
+}
+
 func (h *Hook) Write(p []byte) (n int, err error) {
+	event := &cloudwatchlogs.InputLogEvent{
+		Message:   aws.String(string(p)),
+		Timestamp: aws.Int64(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)),
+	}
+
+	if h.ch != nil {
+		h.ch <- event
+		if lastErr, ok := <-h.err; ok {
+			return 0, fmt.Errorf("%v", lastErr)
+		}
+	}
+
 	h.m.Lock()
 	defer h.m.Unlock()
 
 	params := &cloudwatchlogs.PutLogEventsInput{
-		LogEvents: []*cloudwatchlogs.InputLogEvent{
-			{
-				Message:   aws.String(string(p)),
-				Timestamp: aws.Int64(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)),
-			},
-		},
+		LogEvents:     []*cloudwatchlogs.InputLogEvent{event},
 		LogGroupName:  aws.String(h.groupName),
 		LogStreamName: aws.String(h.streamName),
 		SequenceToken: h.nextSequenceToken,
