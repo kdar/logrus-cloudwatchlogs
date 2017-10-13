@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/kardianos/osext"
+	"github.com/sirupsen/logrus"
 )
 
 type ProdFormatter struct {
@@ -141,7 +141,7 @@ func (f *ProdFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		switch v := v.(type) {
 		case error:
 			// Otherwise errors are ignored by `encoding/json`
-			// https://github.com/Sirupsen/logrus/issues/137
+			// https://github.com/sirupsen/logrus/issues/137
 			data[k] = v.Error()
 		case Marshaler:
 			data[k] = v.MarshalLog()

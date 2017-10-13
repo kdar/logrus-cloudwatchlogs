@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	cwl "github.com/kdar/logrus-cloudwatchlogs"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

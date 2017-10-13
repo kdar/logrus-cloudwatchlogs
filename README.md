@@ -1,7 +1,7 @@
 # Cloud Watch Logs hook for Logrus [![godoc reference](https://godoc.org/github.com/kdar/logrus-cloudwatchlogs?status.png)](https://godoc.org/github.com/kdar/logrus-cloudwatchlogs)
 
 
-Use this hook to send your [Logrus](https://github.com/Sirupsen/logrus) logs to Amazon's [Cloud Watch Logs](https://aws.amazon.com/cloudwatch/details/#log-monitoring).
+Use this hook to send your [Logrus](https://github.com/sirupsen/logrus) logs to Amazon's [Cloud Watch Logs](https://aws.amazon.com/cloudwatch/details/#log-monitoring).
 
 ## Options
 
@@ -19,7 +19,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/kdar/logrus-cloudwatchlogs"

@@ -7,9 +7,9 @@ import (
 
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/sirupsen/logrus"
 	"github.com/smartystreets/assertions"
 	"github.com/smartystreets/assertions/should"
 )

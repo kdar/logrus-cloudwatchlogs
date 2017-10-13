@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/kdar/gtest"
+	"github.com/sirupsen/logrus"
 	"github.com/smartystreets/assertions/should"
 )
 
