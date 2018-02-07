@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/sirupsen/logrus"
@@ -27,6 +28,34 @@ func NewHook(groupName, streamName string, cfg *aws.Config) (*Hook, error) {
 	return NewBatchingHook(groupName, streamName, cfg, 0)
 }
 
+func (h *Hook) getOrCreateCloudWatchLogGroup() (*cloudwatchlogs.DescribeLogStreamsOutput, error) {
+	resp, err := h.svc.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
+		LogGroupName:        aws.String(h.groupName),
+		LogStreamNamePrefix: aws.String(h.streamName),
+	})
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case cloudwatchlogs.ErrCodeResourceNotFoundException:
+				_, err = h.svc.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
+					LogGroupName: aws.String(h.groupName),
+				})
+				if err != nil {
+					return nil, err
+				}
+				return h.getCloudWatchLogGroup()
+			default:
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return resp, nil
+
+}
+
 func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequency time.Duration) (*Hook, error) {
 	h := &Hook{
 		svc:        cloudwatchlogs.New(session.New(cfg)),
@@ -34,11 +63,7 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 		streamName: streamName,
 	}
 
-	resp, err := h.svc.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
-		LogGroupName:        aws.String(h.groupName), // Required
-		LogStreamNamePrefix: aws.String(h.streamName),
-	})
-
+	resp, err := h.getCloudWatchLogGroup()
 	if err != nil {
 		return nil, err
 	}
