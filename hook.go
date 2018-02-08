@@ -44,7 +44,7 @@ func (h *Hook) getOrCreateCloudWatchLogGroup() (*cloudwatchlogs.DescribeLogStrea
 				if err != nil {
 					return nil, err
 				}
-				return h.getCloudWatchLogGroup()
+				return h.getOrCreateCloudWatchLogGroup()
 			default:
 				return nil, err
 			}
@@ -63,7 +63,7 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 		streamName: streamName,
 	}
 
-	resp, err := h.getCloudWatchLogGroup()
+	resp, err := h.getOrCreateCloudWatchLogGroup()
 	if err != nil {
 		return nil, err
 	}
