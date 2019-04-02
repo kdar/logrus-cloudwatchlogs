@@ -21,7 +21,11 @@ type Hook struct {
 	nextSequenceToken *string
 	m                 sync.Mutex
 	ch                chan *cloudwatchlogs.InputLogEvent
-	err               chan error
+	err               *error
+}
+
+func NewHookWithDuration(groupName, streamName string, cfg *aws.Config, batchFrequency time.Duration) (*Hook, error) {
+	return NewBatchingHook(groupName, streamName, cfg, batchFrequency)
 }
 
 func NewHook(groupName, streamName string, cfg *aws.Config) (*Hook, error) {
@@ -68,6 +72,11 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 		return nil, err
 	}
 
+	if batchFrequency > 0 {
+		h.ch = make(chan *cloudwatchlogs.InputLogEvent, 10000)
+		go h.putBatches(time.Tick(batchFrequency))
+	}
+
 	// grab the next sequence token
 	if len(resp.LogStreams) > 0 {
 		h.nextSequenceToken = resp.LogStreams[0].UploadSequenceToken
@@ -81,11 +90,6 @@ func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequen
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	if batchFrequency > 0 {
-		h.ch = make(chan *cloudwatchlogs.InputLogEvent, 10000)
-		go h.putBatches(time.Tick(batchFrequency))
 	}
 
 	return h, nil
@@ -119,25 +123,44 @@ func (h *Hook) Fire(entry *logrus.Entry) error {
 
 func (h *Hook) putBatches(ticker <-chan time.Time) {
 	var batch []*cloudwatchlogs.InputLogEvent
+	size := 0
 	for {
 		select {
 		case p := <-h.ch:
-			batch = append(batch, p)
-		case <-ticker:
-			params := &cloudwatchlogs.PutLogEventsInput{
-				LogEvents:     batch,
-				LogGroupName:  aws.String(h.groupName),
-				LogStreamName: aws.String(h.streamName),
-				SequenceToken: h.nextSequenceToken,
-			}
-			resp, err := h.svc.PutLogEvents(params)
-			if err != nil {
-				h.err <- err
-			} else {
-				h.nextSequenceToken = resp.NextSequenceToken
+			messageSize := len(*p.Message) + 26
+			if size + messageSize >= 1048576 || len(batch) == 10000 {
+				go h.sendBatch(batch)
 				batch = nil
+				size = 0
 			}
+			batch = append(batch, p)
+			size += messageSize
+		case <-ticker:
+			go h.sendBatch(batch)
+			batch = nil
+			size = 0
 		}
+	}
+}
+
+func(h *Hook) sendBatch(batch []*cloudwatchlogs.InputLogEvent){
+	h.m.Lock()
+	defer h.m.Unlock()
+
+	if len(batch) == 0 {
+		return
+	}
+	params := &cloudwatchlogs.PutLogEventsInput{
+		LogEvents:     batch,
+		LogGroupName:  aws.String(h.groupName),
+		LogStreamName: aws.String(h.streamName),
+		SequenceToken: h.nextSequenceToken,
+	}
+	resp, err := h.svc.PutLogEvents(params)
+	if err != nil {
+		h.err = &err
+	} else {
+		h.nextSequenceToken = resp.NextSequenceToken
 	}
 }
 
@@ -149,9 +172,12 @@ func (h *Hook) Write(p []byte) (n int, err error) {
 
 	if h.ch != nil {
 		h.ch <- event
-		if lastErr, ok := <-h.err; ok {
+		if h.err != nil {
+			lastErr := h.err
+			h.err = nil
 			return 0, fmt.Errorf("%v", lastErr)
 		}
+		return len(p), nil
 	}
 
 	h.m.Lock()
@@ -164,9 +190,7 @@ func (h *Hook) Write(p []byte) (n int, err error) {
 		SequenceToken: h.nextSequenceToken,
 	}
 	resp, err := h.svc.PutLogEvents(params)
-
 	if err != nil {
-		//fmt.Println(reflect.TypeOf(err))
 		return 0, err
 	}
 
