@@ -175,7 +175,7 @@ func (h *Hook) Write(p []byte) (n int, err error) {
 		if h.err != nil {
 			lastErr := h.err
 			h.err = nil
-			return 0, fmt.Errorf("%v", lastErr)
+			return 0, fmt.Errorf("%v", *lastErr)
 		}
 		return len(p), nil
 	}
