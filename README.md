@@ -26,16 +26,27 @@ import (
 )
 
 func main() {
-	key := os.Getenv("AWS_ACCESS_KEY")
-	secret := os.Getenv("AWS_SECRET_KEY")
 	group := os.Getenv("AWS_CLOUDWATCHLOGS_GROUP_NAME")
 	stream := os.Getenv("AWS_CLOUDWATCHLOGS_STREAM_NAME")
 
 	// logs.us-east-1.amazonaws.com
-	cred := credentials.NewStaticCredentials(key, secret, "")
-	cfg := aws.NewConfig().WithRegion("us-east-1").WithCredentials(cred)
+	// Define the session - using SharedConfigState which forces file or env creds
+    	sess, err := session.NewSessionWithOptions(session.Options{
+    		SharedConfigState: session.SharedConfigEnable,
+    		Config:            aws.Config{Region: aws.String("us-east-1")},
+    	})
+    	if err != nil {
+    		fmt.Fatal("Not going to be able to write to cloud watch if you cant create a session")
+    	}
+    
+    	// Determine if we are authorized to access AWS with the credentials provided. This does not mean you have access to the
+    	// services required however.
+    	_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
+    	if err != nil {
+    		fmt.Fatal("Couldn't Validate our aws credentials")
+    	}
 
-	hook, err := logrus_cloudwatchlogs.NewHook(group, stream, cfg)
+	hook, err := logrus_cloudwatchlogs.NewHook(group, stream, sess)
 	if err != nil {
 		log.Fatal(err)
 	}
