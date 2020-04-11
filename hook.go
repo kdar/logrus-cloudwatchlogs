@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/sirupsen/logrus"
 )
@@ -24,12 +25,12 @@ type Hook struct {
 	err               *error
 }
 
-func NewHookWithDuration(groupName, streamName string, cfg *aws.Config, batchFrequency time.Duration) (*Hook, error) {
-	return NewBatchingHook(groupName, streamName, cfg, batchFrequency)
+func NewHookWithDuration(groupName, streamName string, sess *session.Session, batchFrequency time.Duration) (*Hook, error) {
+	return NewBatchingHook(groupName, streamName, sess, batchFrequency)
 }
 
-func NewHook(groupName, streamName string, cfg *aws.Config) (*Hook, error) {
-	return NewBatchingHook(groupName, streamName, cfg, 0)
+func NewHook(groupName, streamName string, sess *session.Session) (*Hook, error) {
+	return NewBatchingHook(groupName, streamName, sess, 0)
 }
 
 func (h *Hook) getOrCreateCloudWatchLogGroup() (*cloudwatchlogs.DescribeLogStreamsOutput, error) {
@@ -60,9 +61,9 @@ func (h *Hook) getOrCreateCloudWatchLogGroup() (*cloudwatchlogs.DescribeLogStrea
 
 }
 
-func NewBatchingHook(groupName, streamName string, cfg *aws.Config, batchFrequency time.Duration) (*Hook, error) {
+func NewBatchingHook(groupName, streamName string, sess *session.Session, batchFrequency time.Duration) (*Hook, error) {
 	h := &Hook{
-		svc:        cloudwatchlogs.New(session.New(cfg)),
+		svc:        cloudwatchlogs.New(sess),
 		groupName:  groupName,
 		streamName: streamName,
 	}
@@ -128,7 +129,7 @@ func (h *Hook) putBatches(ticker <-chan time.Time) {
 		select {
 		case p := <-h.ch:
 			messageSize := len(*p.Message) + 26
-			if size + messageSize >= 1048576 || len(batch) == 10000 {
+			if size+messageSize >= 1048576 || len(batch) == 10000 {
 				go h.sendBatch(batch)
 				batch = nil
 				size = 0
@@ -143,7 +144,7 @@ func (h *Hook) putBatches(ticker <-chan time.Time) {
 	}
 }
 
-func(h *Hook) sendBatch(batch []*cloudwatchlogs.InputLogEvent){
+func (h *Hook) sendBatch(batch []*cloudwatchlogs.InputLogEvent) {
 	h.m.Lock()
 	defer h.m.Unlock()
 
