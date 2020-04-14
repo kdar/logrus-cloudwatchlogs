@@ -36,14 +36,14 @@ func main() {
     		Config:            aws.Config{Region: aws.String("us-east-1")},
     	})
     	if err != nil {
-    		fmt.Fatal("Not going to be able to write to cloud watch if you cant create a session")
+    		panic("Not going to be able to write to cloud watch if you cant create a session")
     	}
     
     	// Determine if we are authorized to access AWS with the credentials provided. This does not mean you have access to the
     	// services required however.
     	_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
     	if err != nil {
-    		fmt.Fatal("Couldn't Validate our aws credentials")
+    		panic("Couldn't Validate our aws credentials")
     	}
 
 	hook, err := logrus_cloudwatchlogs.NewHook(group, stream, sess)
